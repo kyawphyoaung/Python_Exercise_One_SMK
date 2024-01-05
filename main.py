@@ -30,6 +30,12 @@ class Inventory:
         user_request_product = self.products[product_id]
         total_price = user_request_product.price * quantity
         return total_price
+    
+    def display_selected(self,selected_product):
+        for product_id, product in self.products.items():
+            if(selected_product==product_id):
+                return product.name
+        return False
 
 # products[2] <= Product("Keyboard",40,12)
 # Product(name,price,quantity)
@@ -44,10 +50,51 @@ inventory_obj.add_product(2,"Keyboard",40,12)
 inventory_obj.add_product(3,"Speaker",80,22)
 inventory_obj.add_product(4,"Camera",240,39)
 
+class Order():
+    def __init__(self):
+        self.products = {}
+        self.total = 0
+
+class Cart:
+    def __init__(self):
+        self.items = {}
+        self.total = 0
+
+    def add_item(self,product_id,quantity,price):
+        self.items[product_id] = {'quantity' : quantity , 'price': price}
+        self.total += price
+
+    def display_cart(self):
+        customer_name = check_customer_name(customer)
+        print(f"\n Customer: {customer_name}")
+        print("Shopping Cart")
+        for product_id, item in self.items.items():
+            product_name = inventory_obj.display_selected(product_id)
+            print(f"ID: {product_id}, Product name: {product_name}, Quantity: {item['quantity']}, Price: {item['price']}")
+        print(f"Total Price: ${self.total}")
+
+    def checkout(self):
+        order = Order()
+        order.products = self.items
+        order.total = self.total
+        self.items = {}
+        self.total = 0
+        print("Check out compeleted!")
+        return order
+
 
 class Customer:
     def __init__(self,name = None):
         self.name = name
+        self.cart = Cart()
+        self.orders = []
+
+    def view_orders(self):
+        for i,order in enumerate(self.orders, 1):
+            print(f"Order {i}")
+            for product_id,product in order.products.items():
+                print(f"ID: {product_id}, Name: {inventory_obj.display_selected(product_id)}, Quantity: {product['quantity']}, Price: {product['price']}")
+            print(f"Total Amount: {order.total}")
 
 customer = Customer()
 
@@ -77,15 +124,26 @@ while True:
         print("Add to cart")
         customer_name = check_customer_name(customer)
         product_id = int(input("Enter the product ID: "))
-        quantity = int(input("Enter the quantity: "))
-        total_price = inventory_obj.process_sale(product_id,quantity)
-        print(f"Total Price : {total_price}")
+        product_name = inventory_obj.display_selected(product_id)
+        if(product_name):
+            print(f"Product Name: {product_name}")
+            quantity = int(input("Enter the quantity: "))
+            total_price = inventory_obj.process_sale(product_id,quantity)
+            print(f"Total Price : {total_price}")
+            customer.cart.add_item(product_id,quantity,total_price)
+            print("Product added to the cart")
+        else:
+            print("This product is not available")
     elif choice == '3':
         print("View cart")
+        customer.cart.display_cart()
     elif choice == '4':
         print("Check out")
+        order = customer.cart.checkout()
+        customer.orders.append(order)
     elif choice == '5':
         print("View Orders")
+        customer.view_orders()
     elif choice == '6':
         print("Program exit. Thank you!")
         break
