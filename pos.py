@@ -4,7 +4,7 @@
 # Check out
 # View Orders
 # Customer 
-
+import csv
 import tkinter as tk
 from tkinter import messagebox,simpledialog
 from tkinter import ttk
@@ -69,22 +69,61 @@ class Cart:
         self.total += price
 
     def display_cart(self):
-        customer_name = check_customer_name(customer)
-        print(f"\n Customer: {customer_name}")
-        print("Shopping Cart")
-        for product_id, item in self.items.items():
-            product_name = inventory_obj.display_selected(product_id)
-            print(f"ID: {product_id}, Product name: {product_name}, Quantity: {item['quantity']}, Price: {item['price']}")
-        print(f"Total Price: ${self.total}")
+        with open('add_to_cart.csv',mode='r') as file:
+            reader = csv.reader(file)
+            header = next(reader)
+            cart_data = [ row for row in reader ]
+        
+        return cart_data
 
-    def checkout(self):
+    def checkout(self,customer_name):
         order = Order()
         order.products = self.items
         order.total = self.total
         self.items = {}
         self.total = 0
-        print("Check out compeleted!")
-        return order
+        with open('add_to_cart.csv',mode='r') as file:
+            reader = csv.reader(file)
+            cart_data = [row for row in reader]
+
+        cus_name_check_cart = [row for row in cart_data if row[0] == customer_name]
+
+        if(cus_name_check_cart):
+            cart_data = [row for row in cart_data if row[0]!= customer_name]
+
+            with open('add_to_cart.csv','w',newline='') as file:
+                writer = csv.writer(file)
+                writer.writerows(cart_data)
+            
+            print("Check out compeleted!")
+            messagebox.showinfo("Checkout Status","Checkout Successfull!")
+
+            total_amount = 0
+
+            with open('orders.csv',mode='r') as file:
+                reader = csv.reader(file)
+                header = next(reader)
+                order_data = [row for row in reader]
+
+            for row in order_data:
+                order_id = int(row[0])
+                
+            for row in cus_name_check_cart:
+                total_amount += int(row[5])
+
+            for row in cus_name_check_cart:
+                row.insert(0,order_id+1)
+                row.append(total_amount)
+
+            with open('orders.csv',mode='a',newline='\n') as file:
+                writer = csv.writer(file)
+                writer.writerows(cus_name_check_cart)
+
+            return order
+        else:
+            messagebox.showinfo("Checkout Status","Invalid Customer Name!")
+
+        
 
 
 class Customer:
@@ -186,12 +225,20 @@ class POSApp:
         button_frame = tk.Frame(self.root)
         button_frame.pack(pady=10)
 
-        tk.Button(button_frame,text="Add to cart", command=self.add_to_cart).pack(side=tk.LEFT, padx=5)
+        buttons = [
+            ("Add to cart", self.add_to_cart),
+            ("Display cart",self.display_cart_btn),
+            ("Check out", self.checkout_btn),
+            ("View Order", self.view_orders )
+        ]
 
-        tk.Button(button_frame,text="Testing",command=self.show_info_message).pack(side=tk.LEFT,pady=10)
+        for texts, commands in buttons:
+            tk.Button(button_frame,text=texts, command=commands).pack(side=tk.LEFT, padx=5)
 
-    def show_info_message(self):
-        messagebox.showinfo("Testing","Hello")
+    def display_cart_btn(self):
+        cart_items = customer.cart.display_cart()
+        view_cart_window = TableWindow(self.root,"Display Cart",["Customer Name","Product ID","Product Name","Quantity","Price","Total"],cart_items)
+        view_cart_window.title("View Cart")
 
     def add_to_cart(self):
         customer_name = check_customer_name(customer)
@@ -204,11 +251,41 @@ class POSApp:
             result += "\nTotal Price: " + f"{total_price}"
             # result = Total Price : 100
             customer.cart.add_item(product_id,quantity,total_price)
+            with open('add_to_cart.csv',mode='a',newline="\n") as file:
+                writer = csv.writer(file)
+                writer.writerow([customer_name,product_id,product_name,quantity,int(total_price/quantity),total_price])
+
             result += "\nProduct added to the cart"
         else:
             result = "This product is not available"
         messagebox.showinfo("Add to cart",result)
+
+    def checkout_btn(self):
+        customer_name = simpledialog.askstring("Customer Name","Enter customer name")
+        order = customer.cart.checkout(customer_name)
+        customer.orders.append(order)
+
+    def view_orders(self):
+        with open('orders.csv',mode='r') as file:
+            reader = csv.reader(file)
+            header = next(reader)
+            order_data = [ row for row in reader ]
+
+        order_window = TableWindow(self.root,"Display Order",["Order_No","Customer Name","ID","Product Name","Quantity","Unit Price","Total Price","Total Amount"],order_data)
+        order_window.title("Display Order")
+
+class TableWindow(tk.Toplevel):
+    def __init__(self,parent,title,columns,data):
+        super().__init__(parent)
+        self.tree = ttk.Treeview(self, columns=columns, show="headings")
+
+        for col in columns:
+            self.tree.heading(col, text=col)
         
+        for row in data:
+            self.tree.insert("","end",values=row)
+
+        self.tree.pack(pady=10)
 
 if __name__ == "__main__":
     root = tk.Tk()
